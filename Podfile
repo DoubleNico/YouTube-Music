@@ -4,4 +4,6 @@ target 'YT Music' do
   pod 'MediaKeyTap'
   pod 'Sparkle'
   pod 'Magnet'
+  pod 'SwordRPC'
+  pod 'BlueSocket'
 end

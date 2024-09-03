@@ -1,28 +1,37 @@
 PODS:
+  - BlueSocket (0.12.94)
   - Magnet (3.3.0):
     - Sauce (~> 2.2.0)
   - MediaKeyTap (2.3.0)
   - Sauce (2.2.0)
   - Sparkle (1.27.0)
+  - SwordRPC (0.2.2):
+    - BlueSocket (~> 0.12)
 
 DEPENDENCIES:
+  - BlueSocket
   - Magnet
   - MediaKeyTap
   - Sparkle
+  - SwordRPC
 
 SPEC REPOS:
   trunk:
+    - BlueSocket
     - Magnet
     - MediaKeyTap
     - Sauce
     - Sparkle
+    - SwordRPC
 
 SPEC CHECKSUMS:
+  BlueSocket: 184ff448002475bfb5d676286c2458da5d971f47
   Magnet: a44a5a14eecc77433cbaad1431b78f7d20725bf2
   MediaKeyTap: d71493f6ac56a35c06d8aa1087522b05956781f0
   Sauce: 3ade51738563f86b08888cf4b91ae5943012088b
   Sparkle: e1245ce5ba951c60183444a13a2c7d227778205d
+  SwordRPC: 7ed51064ea9e61c3c6833cf9de90a8be0ab36653
 
-PODFILE CHECKSUM: 7e23f16343f2d0b3192daf9141a7a2eed5b46abc
+PODFILE CHECKSUM: 24bcfb437df2fc9a6e08c9c988dd5161541f818e
 
-COCOAPODS: 1.10.1
+COCOAPODS: 1.15.2

@@ -9,6 +9,7 @@
 import Cocoa
 import WebKit
 import AVFoundation
+import UserNotifications
 
 #if canImport(MediaPlayer)
 import MediaPlayer
@@ -78,6 +79,8 @@ class MediaCenter: NSObject, WKScriptMessageHandler, NSUserNotificationCenterDel
         
         
         sendNotificationIfRequired()
+        //TODO: FIX DISCORD RPC
+        //sendRPC(title: title!, by: by!, thumbnail: thumbnail!, length: length, progress: progress, isPlaying: isPlaying)
         
         if #available(OSX 10.12.2, *) {
             DispatchQueue.main.async {
@@ -89,38 +92,79 @@ class MediaCenter: NSObject, WKScriptMessageHandler, NSUserNotificationCenterDel
     /// Sends an `NSUserNotification` regarding the song change.
     func sendNotificationIfRequired() {
         guard let title = title,
-        let by = by,
-        let thumbnail = thumbnail,
-        let thumbnailURL = URL(string: thumbnail),
-        title != "",
-        by != "",
-        titleChanged || byChanged else {
+              let by = by,
+              let thumbnail = thumbnail,
+              let thumbnailURL = URL(string: thumbnail),
+              title != "",
+              by != "",
+              titleChanged || byChanged else {
             return
         }
-        
-        let notification = NSUserNotification()
-        
-        notification.title = title
-        notification.subtitle = by
-        
-        notification.contentImage = NSImage(contentsOf: thumbnailURL)
-        
-        
-        NSUserNotificationCenter.default.delegate = self
 
-        // Remove all other notifications
-        NSUserNotificationCenter.default.removeAllDeliveredNotifications()
-        
-        // Schedule the new notification
-        NSUserNotificationCenter.default.deliver(notification)
-        
+        // Create notification content
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.subtitle = by
+
+        // Asynchronously load the image and create the notification
+        downloadImage(from: thumbnailURL) { attachment in
+            if let attachment = attachment {
+                content.attachments = [attachment]
+            }
+
+            // Create a trigger to fire the notification immediately
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+            // Create a request with a unique identifier
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+
+            // Schedule the notification
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Error delivering notification: \(error)")
+                }
+            }
+        }
+
+        // Reset change flags
         titleChanged = false
         byChanged = false
     }
     
-    func userNotificationCenter(_ center: NSUserNotificationCenter, didActivate notification: NSUserNotification) {
-        (NSApp.delegate as? AppDelegate)?.mainWindowController?.showWindow(self)
-        (NSApp.delegate as? AppDelegate)?.mainWindowController?.window?.makeKeyAndOrderFront(self)
+    private func downloadImage(from url: URL, completion: @escaping (UNNotificationAttachment?) -> Void) {
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error downloading image: \(error)")
+                completion(nil)
+                return
+            }
+            
+            guard let data = data, let image = NSImage(data: data) else {
+                print("Failed to load image from data")
+                completion(nil)
+                return
+            }
+            
+            do {
+                let tempDir = FileManager.default.temporaryDirectory
+                let tempFileURL = tempDir.appendingPathComponent(UUID().uuidString + ".jpg")
+                try data.write(to: tempFileURL)
+                
+                let attachment = try UNNotificationAttachment(identifier: UUID().uuidString, url: tempFileURL)
+                completion(attachment)
+            } catch {
+                print("Error creating notification attachment: \(error)")
+                completion(nil)
+            }
+        }.resume()
+    }
+    
+    func requestNotificationAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error = error {
+                print("Notification authorization error: \(error)")
+            }
+        }
     }
     
     /// Sets the information in `MPNowPlayingInfoCenter`
