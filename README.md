@@ -57,6 +57,7 @@ More help in improving YouTube Music is always welcome! Please take a look at th
 2. In Terminal, `cd` to the repo directory and run `pod install`.
 3. Open `YT Music.xcworkspace`.
 4. Under the 'Code Signing' settings in Xcode, make sure your developer account is set for Debug builds.
+5. Add [SwordRPC](https://github.com/PKBeam/SwordRPC) made by PKBeam as a package dependency
 
 ## Legal
 
