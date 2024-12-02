@@ -1,67 +1,95 @@
-//
-//  DiscordRPC.swift
-//  YT Music
-//
-//  Created by Tomescu Vlad on 03.09.2024.
-//  Copyright © 2024 Cocoon Development Ltd. All rights reserved.
-//
-
 import SwordRPC
 
-let rpc = SwordRPC(appId: "1280278762088300565")
+let rpc = SwordRPC.init(appId: "1280278762088300565")
 
-//TODO: fix socket for discordrpc
-func sendRPC(title: String, by: String, thumbnail: String, length: TimeInterval, progress: TimeInterval, isPlaying: Bool, retryCount: Int = 3) {
+var songStartTime: Date?
+var songDuration: TimeInterval = 0
+var currentProgress: TimeInterval = 0
+var statusUpdateTimer: Timer?
+var discordConnectTimer: Timer?
+var lastReportedProgress: TimeInterval = 0
+var lastReportedTitle: String = ""
+var lastReportedIsPlaying: Bool = false
 
-    // Function to attempt to connect and set presence
-    func attemptConnection(attemptsLeft: Int) {
-        guard attemptsLeft > 0 else {
-            print("Failed to connect to Discord after several attempts.")
-            return
-        }
+func connectRPC() {
+    print("Connecting Discord RPC...")
         
-        // Connect to Discord
-        rpc.connect()
-
-        // Handle successful connection
-        rpc.onConnect { rpc in
-            print("Connected to Discord.")
-            var presence = RichPresence()
-            presence.details = title
-            presence.state = by
-
-            let startTime = Date() - progress
-            let endTime = startTime + length
-            presence.timestamps.start = startTime
-            presence.timestamps.end = endTime
-
-            if !thumbnail.isEmpty {
-                presence.assets.largeImage = thumbnail
-                presence.assets.largeText = title
-            } else {
-                presence.assets.largeImage = "default_image"
-                presence.assets.largeText = title
-            }
-            rpc.setPresence(presence)
-        }
-        
-        // Handle disconnection and retry
-        rpc.onDisconnect { rpc, code, msg in
-            print("Disconnected from Discord with code: \(String(describing: code)) and message: \(String(describing: msg)), attempting to reconnect...")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                attemptConnection(attemptsLeft: attemptsLeft - 1)
+    discordConnectTimer = Timer.scheduledTimer(
+        withTimeInterval: 5.0,
+        repeats: true,
+        block: { timer in
+            print("Attempting to connect to Discord...")
+            if rpc.connect() {
+                timer.invalidate()
             }
         }
-        
-        // Handle errors and retry
-        rpc.onError { error, code, msg in
-            print("Encountered an error: \(error) with code: \(String(describing: code)) and message: \(String(describing: msg)), retrying...")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                attemptConnection(attemptsLeft: attemptsLeft - 1)
-            }
-        }
+    )
+}
+
+func disconnectRPC() {
+    print("Disconecting Discord RPC...")
+    discordConnectTimer?.invalidate()
+    statusUpdateTimer?.invalidate()
+    rpc.disconnect()
+}
+
+func sendRichPresence(title: String, artist: String, thumbnail: String, length: TimeInterval, progress: TimeInterval, isPlaying: Bool) {
+    guard isPlaying else {
+        var pausedPresence = RichPresence()
+        pausedPresence.details = "Paused"
+        pausedPresence.state = "by \(artist)"
+        pausedPresence.assets.largeImage = thumbnail
+        pausedPresence.assets.largeText = title
+        pausedPresence.timestamps.start = nil
+        pausedPresence.timestamps.end = nil
+        pausedPresence.assets.smallImage = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Youtube_Music_icon.svg/2048px-Youtube_Music_icon.svg.png"
+        pausedPresence.assets.smallText = "Made by DoubleNico"
+
+        rpc.setPresence(pausedPresence)
+        return
+    }
+
+    let now = Date()
+
+    if songStartTime == nil || abs(progress - currentProgress) > 1.0 {
+        songStartTime = now - progress
+    }
+
+    let elapsedTime = now.timeIntervalSince(songStartTime!)
+    let effectiveProgress = max(elapsedTime, 0)
+    let endTime = songStartTime!.addingTimeInterval(length)
+
+
+    if abs(progress - lastReportedProgress) < 1.0 && title == lastReportedTitle {
+        return
+    }
+
+    lastReportedProgress = progress
+    lastReportedTitle = title
+    lastReportedIsPlaying = isPlaying
+
+    var presence = RichPresence()
+    presence.details = title
+    presence.state = "by \(artist)"
+    presence.timestamps.start = songStartTime
+    presence.timestamps.end = endTime
+
+    if !thumbnail.isEmpty {
+        presence.assets.largeImage = thumbnail
+        presence.assets.largeText = title
+        presence.assets.smallImage = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Youtube_Music_icon.svg/2048px-Youtube_Music_icon.svg.png"
+        presence.assets.smallText = "Made by DoubleNico"
+    } else {
+        presence.assets.largeImage = "default_image"
+        presence.assets.largeText = title
+        presence.assets.smallImage = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Youtube_Music_icon.svg/2048px-Youtube_Music_icon.svg.png"
+        presence.assets.smallText = "Made by DoubleNico"
     }
     
-    // Start the connection attempt
-    attemptConnection(attemptsLeft: retryCount)
+    presence.party.max = 5
+    presence.party.size = 3
+    presence.party.id = "partyId"
+    presence.secrets.join = "https://github.com/DoubleNico/YouTube-Music"
+    
+    rpc.setPresence(presence)
 }

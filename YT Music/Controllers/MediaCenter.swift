@@ -18,7 +18,6 @@ import MediaPlayer
 class MediaCenter: NSObject, WKScriptMessageHandler, NSUserNotificationCenterDelegate {
     
     static let `default` = MediaCenter()
-    
     override private init() { }
     
     private var titleChanged = false
@@ -78,11 +77,10 @@ class MediaCenter: NSObject, WKScriptMessageHandler, NSUserNotificationCenterDel
         length = dict["length"] as? TimeInterval ?? 0
         progress = dict["progress"] as? TimeInterval ?? 0
         isPlaying = dict["isPlaying"] as? Bool ?? false
-        
-        
+
+        sendRichPresence(title: title ?? "Unknown Title", artist: by ?? "Unknown Artist", thumbnail: thumbnail ?? "Unknown Thumbnail", length: length, progress: progress, isPlaying: isPlaying)
+
         sendNotificationIfRequired()
-        //TODO: FIX DISCORD RPC
-        //sendRPC(title: title!, by: by!, thumbnail: thumbnail!, length: length, progress: progress, isPlaying: isPlaying)
         
         if #available(OSX 10.12.2, *) {
             DispatchQueue.main.async {
